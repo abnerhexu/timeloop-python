@@ -44,10 +44,6 @@ def process_pipeline_latency(top_idx: int, latencies):
     hidden_latency_map = make_hidden_latency_map(dim_tags,
                                                  space,
                                                  len(latencies))
-    hidden_latency_map = \
-        hidden_latency_map.intersect_domain(summed_latency.domain())
-    hidden_latency_map = \
-        hidden_latency_map.intersect_range(summed_latency.domain())
     hidden_latencies = \
         hidden_latency_map.apply_pw_qpolynomial(summed_latency)
 
@@ -94,4 +90,11 @@ def make_hidden_latency_map(dim_tags, space, n_stages):
     lower = n_stages*tprime + ps_prime + 1
     upper = n_stages*tprime + ps_prime + n_stages
 
-    return lower.le_map(inner).intersect(upper.gt_map(inner))
+    hidden_latency_map = lower.le_map(inner).intersect(upper.gt_map(inner))
+
+    # Make other dimensions equal
+    for i in range(t_idx):
+        var = isl.Aff.var_on_domain(space, isl.dim_type.set, i)
+        hidden_latency_map = hidden_latency_map.intersect(var.eq_map(var))
+
+    return hidden_latency_map
