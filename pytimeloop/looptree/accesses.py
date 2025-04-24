@@ -1,154 +1,217 @@
 from collections import defaultdict
 from collections.abc import Mapping
+from dataclasses import dataclass
 from numbers import Number
+from typing import Optional, overload
 
 from bindings.looptree import TemporalTag, SequentialTag, PipelineTemporalTag
 
 import islpy as isl
+
+from pytimeloop.looptree.reuse.isl import IslReuseAnalysisOutput
+from pytimeloop.looptree.reuse.summarized import SummarizedAnalysisOutput
 
 from pytimeloop.isl.singular import get_sum_of_pw_qpolynomial
 from pytimeloop.isl.sum import sum_with_mask
 from pytimeloop.looptree.mapping_utilities import *
 
 
-def get_total_accesses(accesses: Mapping):
-    result = {}
-    for k, v in accesses.items():
-        if isinstance(v, isl.PwQPolynomial):
-            sum = get_sum_of_pw_qpolynomial(v)
-            if sum.is_nan():
-                result[k] = 0
-            else:
-                result[k] = sum.to_python()
-        elif isinstance(v, Number):
-            result[k] = v
-        else:
-            result[k] = v
+@dataclass
+class Accesses:
+    total_reads: Optional[float]
+    total_writes: Optional[float]
+    max_per_unit_reads: Optional[float]
+    max_per_unit_writes: Optional[float]
 
+
+class BufferAccesses:
+    def __init__(self):
+        self.accesses: dict[tuple, Accesses] = {}
+
+    def get_accesses(self, buffer, dspace, einsum) -> Accesses:
+        key = (buffer, dspace, einsum)
+        if key not in self.accesses:
+            self.accesses[key] = Accesses(0, 0, 0, 0)
+        return self.accesses[key]
+
+    def items(self):
+        return self.accesses.items()
+
+    def items_with_buffer(self, ref_buffer):
+        """Returns iterator similar to `items` but only for `ref_buffer`"""
+        return (
+            ((buffer, dspace, einsum), value)
+            for (buffer, dspace, einsum), value in self.accesses.items()
+            if buffer == ref_buffer
+        )
+
+
+@overload
+def summarize_total_and_per_unit_actions(
+    reuse_analysis_result: IslReuseAnalysisOutput
+):
+    pass
+@overload
+def summarize_total_and_per_unit_actions(
+    reuse_analysis_result: SummarizedAnalysisOutput
+):
+    pass
+
+def summarize_total_and_per_unit_actions(
+    reuse_analysis_result
+):
+    result = {}
+    if isinstance(reuse_analysis_result, IslReuseAnalysisOutput):
+        for key, (tags, fill) in reuse_analysis_result.fills.items():
+            read_to_parent = reuse_analysis_result.reads_to_parent[key][1]
+            read_to_peer = reuse_analysis_result.reads_to_peer[key][1]
+
+            total_fill = get_sum_of_pw_qpolynomial(fill)
+            total_read_to_parent = get_sum_of_pw_qpolynomial(read_to_parent)
+            total_read_to_peer = get_sum_of_pw_qpolynomial(read_to_peer)
+
+            max_per_unit_fill = \
+                _sum_over_temporal_max_over_spatial(tags, fill)
+
+            n_read_to_parent_dim = read_to_parent.dim(isl.dim_type.in_)
+            max_per_unit_read_to_parent = \
+                _sum_over_temporal_max_over_spatial(tags[:n_read_to_parent_dim],
+                                                    read_to_parent)
+
+            max_per_unit_read_to_peer = \
+                _sum_over_temporal_max_over_spatial(tags, read_to_peer)
+
+            result[key] = (total_fill,
+                           total_read_to_parent,
+                           total_read_to_peer,
+                           max_per_unit_fill,
+                           max_per_unit_read_to_parent,
+                           max_per_unit_read_to_peer)
+    elif isinstance(reuse_analysis_result, SummarizedAnalysisOutput):
+        for key, (tags, fill) in reuse_analysis_result.fills.items():
+            buffer_id = key[0]
+
+            read_to_parent = reuse_analysis_result.reads_to_parent[key][1]
+            read_to_peer = reuse_analysis_result.reads_to_peer[key][1]
+
+            total_fill = fill
+            total_read_to_parent = read_to_parent
+            total_read_to_peer = read_to_peer
+
+            fanout = reuse_analysis_result.fanout[buffer_id]
+
+            max_per_unit_fill = fill / fanout
+            max_per_unit_read_to_parent = read_to_parent / fanout
+            max_per_unit_read_to_peer = read_to_peer / fanout
+
+            result[key] = (total_fill,
+                           total_read_to_parent,
+                           total_read_to_peer,
+                           max_per_unit_fill,
+                           max_per_unit_read_to_parent,
+                           max_per_unit_read_to_peer)
     return result
 
 
-def reads_and_writes_from_fill_by_parent(fills: Mapping,
-                                         reads_to_parent,
-                                         mapping,
-                                         workload,
-                                         is_path=False,
-                                         per_unit=False):
+
+@overload
+def buffer_accesses_from_buffet_actions(
+    reuse_analysis_result: IslReuseAnalysisOutput,
+    mapping,
+    workload,
+    is_path=False
+) -> BufferAccesses:
+    pass
+@overload
+def buffer_accesses_from_buffet_actions(
+    reuse_analysis_result: SummarizedAnalysisOutput,
+    mapping,
+    workload,
+    is_path=False
+) -> BufferAccesses:
+    pass
+# TODO: is_path should be removed and we should accept only regular mappings
+def buffer_accesses_from_buffet_actions(
+    reuse_analysis_result,
+    mapping,
+    workload,
+    is_path=False
+) -> BufferAccesses:
     mapping = mapping['nodes']
     dspace_id_to_name = workload.data_space_id_to_name()
     einsum_id_to_name = workload.einsum_id_to_name()
 
-    reads = defaultdict(lambda: 0)
-    writes = defaultdict(lambda: 0)
 
     parent_buffers = get_parent_buffers(mapping, workload, is_path)
 
-    einsums_with_complete_mappings = get_einsums_with_complete_mappings(mapping, workload, is_path)
+    einsums_with_complete_mappings = \
+        get_einsums_with_complete_mappings(mapping, workload, is_path)
 
     compute_targets = set()
     for compute_node in get_leaves(mapping, is_path):
         assert compute_node["type"] == "compute"
         compute_targets.add(compute_node["target"])
 
-    for (buffer_id, dspace_id, einsum_id), (tags, fill) in fills.items():
-        read_to_parent = reads_to_parent[(buffer_id, dspace_id, einsum_id)][1]
+    summarized_actions = \
+        summarize_total_and_per_unit_actions(reuse_analysis_result)
 
-        if not per_unit:
-            read_to_parent = get_sum_of_pw_qpolynomial(read_to_parent)
-            fill = get_sum_of_pw_qpolynomial(fill)
-        else:
-            fill = sum_with_mask(
-                [
-                    (
-                        isinstance(t, TemporalTag) or
-                        isinstance(t, PipelineTemporalTag) or
-                        isinstance(t, SequentialTag)
-                    )
-                    for t in tags
-                ],
-                fill
-            ).max().to_python()
-            n_read_to_parent_dim = read_to_parent.dim(isl.dim_type.in_)
-            read_to_parent = sum_with_mask(
-                [
-                    (
-                        isinstance(t, TemporalTag) or
-                        isinstance(t, PipelineTemporalTag) or
-                        isinstance(t, SequentialTag)
-                    )
-                    for t in tags[:n_read_to_parent_dim]
-                ],
-                read_to_parent
-            ).max().to_python()
+    accesses_results = BufferAccesses()
+    for (buffer_id, dspace_id, einsum_id), value in summarized_actions.items():
+        (
+            fill,
+            read_to_parent,
+            read_to_peer,
+            max_per_unit_fill,
+            max_per_unit_read_to_parent,
+            max_per_unit_read_to_peer
+        ) = value
 
         dspace_name = dspace_id_to_name[dspace_id]
         einsum_name = einsum_id_to_name[einsum_id]
         if einsum_id not in einsums_with_complete_mappings:
             continue
+
         parent_buffer = parent_buffers[(buffer_id, dspace_id, einsum_id)]
         if parent_buffer is not None:
-            key = (parent_buffer, dspace_name, einsum_name)
+            accesses = accesses_results.get_accesses(parent_buffer,
+                                                     dspace_name,
+                                                     einsum_name)
             if dspace_id in workload.tensors_written_by_einsum(einsum_id):
-                writes[key] += read_to_parent
-                reads[key] += read_to_parent
-                # Subtracted term: elided first read of a read-write tensor
+                accesses.total_writes += read_to_parent
+                accesses.total_reads += read_to_parent
+
                 # TODO: figure out how to do this per unit
-                if not per_unit:
-                    reads[key] -= workload.get_tensor_volume(dspace_id)
+                total_elided_reads = workload.get_tensor_volume(dspace_id)
+                accesses.total_reads -= total_elided_reads
+
+                accesses.max_per_unit_reads += max_per_unit_read_to_parent
+                accesses.max_per_unit_writes += max_per_unit_read_to_parent
             elif dspace_id in workload.tensors_read_by_einsum(einsum_id):
-                reads[key] += read_to_parent
+                accesses.total_reads += read_to_parent
+
+                accesses.max_per_unit_reads += read_to_parent
+
         # Fills will write into current buffer except for compute (which does
         # not have write action) and top-level buffer
+        accesses = accesses_results.get_accesses(buffer_id,
+                                                 dspace_name,
+                                                 einsum_name)
         if buffer_id not in compute_targets and parent_buffer is not None:
             if dspace_id in workload.tensors_written_by_einsum(einsum_id):
-                writes[(buffer_id, dspace_name, einsum_name)] += fill
-                if not per_unit:
-                    writes[(buffer_id, dspace_name, einsum_name)] -= \
-                        workload.get_tensor_volume(dspace_id)
+                accesses.total_writes += fill
+                accesses.max_per_unit_writes += max_per_unit_fill
+
+                # TODO: figure out how to do this per unit
+                total_elided_writes = workload.get_tensor_volume(dspace_id)
+                accesses.total_writes -= total_elided_writes
             else:
-                writes[(buffer_id, dspace_name, einsum_name)] += fill
+                accesses.total_writes += fill
+                accesses.max_per_unit_writes += max_per_unit_fill
 
-    return reads, writes
+        accesses.total_reads += read_to_peer
+        accesses.max_per_unit_reads += max_per_unit_read_to_peer
 
-
-def reads_and_writes_from_fill_by_peer(fills: Mapping,
-                                       mapping,
-                                       workload,
-                                       is_path=False,
-                                       per_unit=False):
-    mapping = mapping['nodes']
-    dspace_id_to_name = workload.data_space_id_to_name()
-    einsum_id_to_name = workload.einsum_id_to_name()
-
-    reads = {}
-    writes = {}
-
-    einsums_with_complete_mappings = get_einsums_with_complete_mappings(mapping, workload, is_path)
-
-    for (buffer_id, dspace_id, einsum_id), (tags, fill) in fills.items():
-        if not per_unit:
-            fill = get_sum_of_pw_qpolynomial(fill)
-        else:
-            fill = sum_with_mask(
-                [
-                    (
-                        isinstance(t, TemporalTag) or
-                        isinstance(t, PipelineTemporalTag) or
-                        isinstance(t, SequentialTag)
-                    )
-                    for t in tags
-                ],
-                fill
-            ).max().to_python()
-        einsum_name = einsum_id_to_name[einsum_id]
-        dspace_name = dspace_id_to_name[dspace_id]
-        if einsum_id not in einsums_with_complete_mappings:
-            continue
-
-        reads[(buffer_id, dspace_name, einsum_name)] = fill
-        writes[(buffer_id, dspace_name, einsum_name)] = 0 # already accounted for in fill_by_parent
-
-    return reads, writes
+    return accesses_results
 
 
 def get_parent_buffers(mapping, workload, is_path):
@@ -191,3 +254,17 @@ def get_parent_buffers(mapping, workload, is_path):
                         parent_buffers[key] = dspace_to_top_buffer[dspace_id]
 
     return parent_buffers
+
+
+def _sum_over_temporal_max_over_spatial(tags, actions):
+    return sum_with_mask(
+        [
+            (
+                isinstance(t, TemporalTag) or
+                isinstance(t, PipelineTemporalTag) or
+                isinstance(t, SequentialTag)
+            )
+            for t in tags
+        ],
+        actions
+    ).max().to_python()

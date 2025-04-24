@@ -8,8 +8,6 @@ from pytimeloop.looptree.mapping_utilities import *
 
 
 def gather_actions(looptree_results, mapping, workload, bindings, is_path=False):
-    reads, writes = get_accesses(looptree_results, mapping, workload, is_path)
-
     einsum_name_to_id = workload.einsum_name_to_id()
 
     einsums_with_complete_mapping = \
@@ -19,56 +17,27 @@ def gather_actions(looptree_results, mapping, workload, bindings, is_path=False)
         for e in einsums_with_complete_mapping
     }
 
-    ops = gather_ops(looptree_results.ops, einsums_with_complete_mapping)
-
+    accesses_stats = buffer_accesses_from_buffet_actions(looptree_results,
+                                                         mapping,
+                                                         workload,
+                                                         is_path)
     actions = {}
-    for (buf, tensor, einsum), counts in reads.items():
+    for (buf, tensor, einsum), accesses in accesses_stats.items():
         buf = bindings[buf]
         key = (buf, 'read')
         if key not in actions:
             actions[key] = 0
-        actions[key] += counts
+        actions[key] += accesses.total_reads
 
-    for (buf, tensor, einsum), counts in writes.items():
-        buf = bindings[buf]
         key = (buf, 'write')
         if key not in actions:
             actions[key] = 0
-        actions[key] += counts
+        actions[key] += accesses.total_writes
 
+    ops = gather_ops(looptree_results.ops, einsums_with_complete_mapping)
     actions[(bindings[max(bindings.keys())], 'compute')] = ops
 
     return actions
-
-
-def get_accesses(looptree_results, mapping, workload, is_path=False):
-    reads_to_parent = looptree_results.reads_to_parent
-
-    reads, writes = reads_and_writes_from_fill_by_parent(
-        looptree_results.fills,
-        reads_to_parent,
-        mapping,
-        workload,
-        is_path
-    )
-    reads, writes = get_total_accesses(reads), get_total_accesses(writes)
-
-    peer_reads, peer_writes = reads_and_writes_from_fill_by_peer(
-        looptree_results.reads_to_peer,
-        mapping,
-        workload,
-        is_path
-    )
-    peer_reads = get_total_accesses(peer_reads)
-    peer_writes = get_total_accesses(peer_writes)
-
-    for k, v in peer_reads.items():
-        reads[k] = reads.get(k, 0) + v
-
-    for k, v in peer_writes.items():
-        writes[k] = writes.get(k, 0) + v
-
-    return reads, writes
 
 
 def compute_energy_from_actions(action_counts: Mapping[(str, str), Real],

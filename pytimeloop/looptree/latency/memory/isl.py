@@ -1,9 +1,6 @@
 from collections import defaultdict
 
-from pytimeloop.looptree.accesses import (
-    reads_and_writes_from_fill_by_parent,
-    reads_and_writes_from_fill_by_peer
-)
+from pytimeloop.looptree.accesses import buffer_accesses_from_buffet_actions
 from pytimeloop.looptree.reuse.isl.des import IslReuseAnalysisOutput
 
 
@@ -12,29 +9,21 @@ def memory_latency(looptree_results: IslReuseAnalysisOutput,
                    mapping,
                    workload,
                    bindings):
-    reads, writes = reads_and_writes_from_fill_by_parent(
-        looptree_results.fills,
-        looptree_results.reads_to_parent,
+    accesses_stats = buffer_accesses_from_buffet_actions(
+        looptree_results,
         mapping,
         workload,
-        per_unit=True
-    )
-
-    peer_reads, peer_writes = reads_and_writes_from_fill_by_peer(
-        looptree_results.reads_to_peer,
-        mapping,
-        workload,
-        per_unit=True
+        is_path=False
     )
 
     component_to_read_writes = defaultdict(lambda: [None, None])
     for level, component in bindings.items():
-        read_count = sum(reads[key] for key in reads if key[0] == level)
-        read_count += sum(peer_reads[key]
-                          for key in peer_reads if key[0] == level)
-        write_count = sum(writes[key] for key in writes if key[0] == level)
-        write_count += sum(peer_writes[key]
-                           for key in peer_writes if key[0] == level)
+        read_count = 0
+        write_count = 0
+        for key, accesses in accesses_stats.items_with_buffer(level):
+            read_count += accesses.max_per_unit_reads
+            write_count += accesses.max_per_unit_writes
+
         if component not in component_to_read_writes:
             component_to_read_writes[component][0] = read_count
             component_to_read_writes[component][1] = write_count

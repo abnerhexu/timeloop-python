@@ -1,6 +1,7 @@
 from typing import overload
 
-from pytimeloop.looptree.reuse.isl.des import IslReuseAnalysisOutput
+from pytimeloop.looptree.reuse.isl import IslReuseAnalysisOutput
+from pytimeloop.looptree.reuse.summarized import SummarizedAnalysisOutput
 from pytimeloop.looptree.latency.memory import isl
 
 

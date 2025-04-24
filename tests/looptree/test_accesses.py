@@ -111,20 +111,18 @@ class TestLoopTreeAccess(unittest.TestCase):
         result = model.run()
         result = deserialize_looptree_output(result, isl.DEFAULT_CONTEXT)
 
-        reads, writes = reads_and_writes_from_fill_by_parent(
-            result.fills,
-            result.reads_to_parent,
-            config['mapping'],
-            workload
-        )
+        accesses_stats = buffer_accesses_from_buffet_actions(result,
+                                                             config['mapping'],
+                                                             workload)
 
-        self.assertEqual(read_refs, dict(reads))
-        self.assertEqual(write_refs, dict(writes))
+        for (buffer, dspace, einsum), read_ref in read_refs.items():
+            accesses = accesses_stats.get_accesses(buffer, dspace, einsum)
+            self.assertEqual(read_ref,
+                             accesses.total_reads,
+                             f'mismatch: ({buffer}, {dspace}, {einsum})')
 
-        reads, writes = reads_and_writes_from_fill_by_peer(
-            result.reads_to_peer,
-            config['mapping'],
-            workload
-        )
-        self.assertEqual(0, sum(reads.values()))
-        self.assertEqual(0, sum(writes.values()))
+        for (buffer, dspace, einsum), write_ref in write_refs.items():
+            accesses = accesses_stats.get_accesses(buffer, dspace, einsum)
+            self.assertEqual(write_ref,
+                             accesses.total_writes,
+                             f'mismatch: ({buffer}, {dspace}, {einsum})')

@@ -14,7 +14,7 @@ from .compiler import lambdify
 
 
 @dataclass
-class IslReuseAnalysisOutput:
+class SummarizedAnalysisOutput:
     ops: dict = field(default_factory=dict)
     fills: dict = field(default_factory=dict)
     occupancy: dict = field(default_factory=dict)
