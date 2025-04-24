@@ -1,6 +1,9 @@
+from typing import overload
+
 from pytimeloop.isl.singular import get_value_from_singular_qpolynomial
 from pytimeloop.looptree.latency.processors import LATENCY_PROCESSORS
-from pytimeloop.looptree.reuse.isl.des import IslReuseAnalysisOutput
+from pytimeloop.looptree.reuse.isl import IslReuseAnalysisOutput
+from pytimeloop.looptree.reuse.summarized import SummarizedAnalysisOutput
 from pytimeloop.looptree.latency.memory import memory_latency
 
 from bindings.looptree import SpatialTag
@@ -11,9 +14,9 @@ def get_latency(looptree_results: IslReuseAnalysisOutput,
                 workload,
                 arch,
                 bindings):
-    comp_latency = compute_latency(mapping,
-                                   looptree_results.temporal_steps,
-                                   workload)
+    comp_latency = calculate_compute_latency(looptree_results,
+                                             mapping,
+                                             workload)
     mem_latency = memory_latency(looptree_results,
                                  arch,
                                  mapping,
@@ -23,10 +26,38 @@ def get_latency(looptree_results: IslReuseAnalysisOutput,
     return overall_latency, comp_latency, mem_latency
 
 
-def compute_latency(mapping, temporal_steps, workload):
+@overload
+def calculate_compute_latency(reuse_analysis_results: IslReuseAnalysisOutput,
+                              mapping,
+                              workload):
+    pass
+@overload
+def calculate_compute_latency(reuse_analysis_results: SummarizedAnalysisOutput,
+                              mapping,
+                              workload):
+    pass
+def calculate_compute_latency(reuse_analysis_results, mapping, workload):
+    if isinstance(reuse_analysis_results, IslReuseAnalysisOutput):
+        return compute_isl_latency(reuse_analysis_results.temporal_steps,
+                                   mapping,
+                                   workload)
+    elif isinstance(reuse_analysis_results, SummarizedAnalysisOutput):
+        return compute_summarized_latency(
+            reuse_analysis_results.temporal_steps,
+            mapping,
+            workload
+        )
+
+
+def compute_isl_latency(temporal_steps, mapping, workload):
     return get_value_from_singular_qpolynomial(
         _compute_latency(mapping.nodes, 0, temporal_steps, workload)[1]
     ).to_python()
+
+
+def compute_summarized_latency(temporal_steps, mapping, workload):
+    # TODO: this is only for single-Einsum!!!
+    return sum(value for key, value in temporal_steps)
 
 
 def _compute_latency(mapping, top_idx: int, temporal_steps, workload):
