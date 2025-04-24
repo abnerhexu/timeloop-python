@@ -1,7 +1,7 @@
 import unittest
 import islpy as isl
 
-from pytimeloop.looptree.des import deserialize_looptree_output
+from pytimeloop.looptree.reuse.isl.des import deserialize_looptree_output
 from pytimeloop.looptree.visualization.occupancy import plot_occupancy_graph
 
 from tests.util import CONFIG_DIR, TEST_TMP_DIR

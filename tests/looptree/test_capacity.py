@@ -3,7 +3,7 @@ from pathlib import Path
 
 import islpy as isl
 
-from pytimeloop.looptree.des import deserialize_looptree_output
+from pytimeloop.looptree.reuse.isl.des import deserialize_looptree_output
 from pytimeloop.looptree.capacity import compute_capacity_usage
 from .make_model_app import make_model_app
 

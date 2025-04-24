@@ -8,7 +8,7 @@ import islpy as isl
 
 from bindings.config import Config
 from bindings.looptree import LooptreeModelApp, LooptreeWorkload
-from pytimeloop.looptree.des import deserialize_looptree_output
+from pytimeloop.looptree.reuse.isl.des import deserialize_looptree_output
 from pytimeloop.looptree.accesses import *
 
 from tests.util import TEST_TMP_DIR, gather_yaml_configs

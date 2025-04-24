@@ -1,18 +1,35 @@
 from collections import defaultdict
+from dataclasses import dataclass, field
 from functools import reduce
 from operator import mul
 
 import sympy
 
+from bindings.looptree import LooptreeWorkload, LooptreeWorkloadDependencyAnalyzer
+
 from pytimeloop.looptree.equivalent_ranks import EquivalentGroups
 from pytimeloop.looptree.reuse.isl.des import IslReuseAnalysisOutput
 
+from .compiler import lambdify
 
-def compile_mapping(mapping,
-                    workload,
-                    analyzer):
+
+@dataclass
+class IslReuseAnalysisOutput:
+    ops: dict = field(default_factory=dict)
+    fills: dict = field(default_factory=dict)
+    occupancy: dict = field(default_factory=dict)
+    op_occupancy: dict = field(default_factory=dict)
+    reads_to_peer: dict = field(default_factory=dict)
+    reads_to_parent: dict = field(default_factory=dict)
+    temporal_steps: dict = field(default_factory=dict)
+    fanout: dict = field(default_factory=dict)
+    op_intensity: dict = field(default_factory=dict)
+
+
+def analyze_reuse(mapping,
+                  workload: LooptreeWorkload,
+                  analyzer: LooptreeWorkloadDependencyAnalyzer):
     einsum_name_to_id = workload.einsum_name_to_id()
-    rank_id_to_name = workload.dimension_id_to_name()
     rank_name_to_id = workload.dimension_name_to_id()
     tensor_name_to_id = workload.data_space_name_to_id()
 
@@ -53,8 +70,6 @@ def compile_mapping(mapping,
         }
         for tensor_id, relevant_ranks in tensor_to_relevant_ranks.items()
     }
-
-    level_to_op_intensity = {}
 
     tile_shapes = []
 
@@ -211,29 +226,21 @@ def compile_mapping(mapping,
                 )
             fanout[target] = cur_fanout
 
-    def lambdify(d):
-        if isinstance(next(iter(d.values())), tuple):
-            return {
-                k: (v[0], sympy.lambdify(tile_shapes, v[1]))
-                for k, v in d.items()
-            }
-        else:
-            return {
-                k: sympy.lambdify(tile_shapes, v)
-                for k, v in d.items()
-            }
-
     output.ops[einsum_id] = \
         (None, workload.get_operation_space_volume(einsum_id))
     output.temporal_steps[einsum_id] = latency
     output.fanout = fanout
 
-    output.ops = lambdify(output.ops)
-    output.temporal_steps = lambdify(output.temporal_steps)
-    output.fanout = lambdify(output.fanout)
-    output.occupancy = lambdify(output.occupancy)
-    output.fills = lambdify(output.fills)
-    output.reads_to_parent = lambdify(output.reads_to_parent)
-    output.op_intensity = lambdify(output.op_intensity)
+    return tile_shapes, output
+
+    lambdify_with_tile_shapes = lambda x: lambdify(x, tile_shapes)
+
+    output.ops = lambdify_with_tile_shapes(output.ops)
+    output.temporal_steps = lambdify_with_tile_shapes(output.temporal_steps)
+    output.fanout = lambdify_with_tile_shapes(output.fanout)
+    output.occupancy = lambdify_with_tile_shapes(output.occupancy)
+    output.fills = lambdify_with_tile_shapes(output.fills)
+    output.reads_to_parent = lambdify_with_tile_shapes(output.reads_to_parent)
+    output.op_intensity = lambdify_with_tile_shapes(output.op_intensity)
 
     return tile_shapes, output

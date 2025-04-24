@@ -5,7 +5,7 @@ from itertools import starmap
 import islpy as isl
 
 from bindings.looptree import *
-from pytimeloop.looptree.des import deserialize_looptree_output
+from pytimeloop.looptree.reuse.isl.des import deserialize_looptree_output
 from .make_model_app import make_model_app
 from tests.util import TEST_TMP_DIR
 

@@ -4,7 +4,7 @@ from operator import mul
 
 from .shape_subspace import ShapeSubspace
 
-from pytimeloop.looptree.des import IslReuseAnalysisOutput
+from pytimeloop.looptree.reuse.isl.des import IslReuseAnalysisOutput
 
 
 def explore_tile_shape(
