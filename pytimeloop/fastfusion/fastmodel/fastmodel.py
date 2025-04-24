@@ -5,7 +5,7 @@ from operator import mul
 import sympy
 
 from pytimeloop.looptree.equivalent_ranks import EquivalentGroups
-from pytimeloop.looptree.des import LooptreeOutput
+from pytimeloop.looptree.des import IslReuseAnalysisOutput
 
 
 def compile_mapping(mapping,
@@ -58,7 +58,7 @@ def compile_mapping(mapping,
 
     tile_shapes = []
 
-    output = LooptreeOutput()
+    output = IslReuseAnalysisOutput()
 
     latency = 1
     potential_tensor_access_multiplier = defaultdict(lambda: 1)

@@ -1,9 +1,9 @@
 import matplotlib.pyplot as plt
 
-from pytimeloop.looptree.des import LooptreeOutput
+from pytimeloop.looptree.des import IslReuseAnalysisOutput
 
 
-def plot_occupancy_graph(output: LooptreeOutput, workload):
+def plot_occupancy_graph(output: IslReuseAnalysisOutput, workload):
     einsum_rank_to_shape = {
         einsum: {
             rank: workload.get_rank_shape(rank)

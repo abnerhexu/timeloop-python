@@ -4,7 +4,7 @@ from operator import mul
 
 from .shape_subspace import ShapeSubspace
 
-from pytimeloop.looptree.des import LooptreeOutput
+from pytimeloop.looptree.des import IslReuseAnalysisOutput
 
 
 def explore_tile_shape(
@@ -56,7 +56,7 @@ def explore_tile_shape(
         if only_count:
             continue
 
-        result = LooptreeOutput()
+        result = IslReuseAnalysisOutput()
         result.ops = call_with_arg(compiled_result.ops, shape)
         result.temporal_steps = call_with_arg(compiled_result.temporal_steps, shape)
         result.fanout = call_with_arg(compiled_result.fanout, shape)

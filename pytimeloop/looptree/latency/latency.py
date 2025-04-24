@@ -6,12 +6,12 @@ from pytimeloop.looptree.accesses import (
     reads_and_writes_from_fill_by_peer
 )
 from pytimeloop.looptree.latency.processors import LATENCY_PROCESSORS
-from pytimeloop.looptree.des import LooptreeOutput
+from pytimeloop.looptree.des import IslReuseAnalysisOutput
 
 from bindings.looptree import SpatialTag
 
 
-def get_latency(looptree_results: LooptreeOutput,
+def get_latency(looptree_results: IslReuseAnalysisOutput,
                 mapping,
                 workload,
                 arch,
@@ -34,7 +34,7 @@ def compute_latency(mapping, temporal_steps, workload):
     ).to_python()
 
 
-def memory_latency(looptree_results: LooptreeOutput,
+def memory_latency(looptree_results: IslReuseAnalysisOutput,
                    arch,
                    mapping,
                    workload,

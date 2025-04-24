@@ -1,0 +1,24 @@
+mapping:
+  type: fused
+  nodes:
+  - type: storage
+    target: 0
+    dspace: [Filter1, Fmap1, Fmap2]
+  - type: storage
+    target: 1
+    dspace: [Filter1]
+  - type: temporal
+    rank: P1
+  - type: storage
+    target: 2
+    dspace: [Fmap2]
+  - type: temporal
+    rank: C1
+  - type: spatial
+    rank: M1
+  - type: storage
+    target: 3
+    dspace: [Fmap1]
+  - type: compute
+    einsum: Fc1
+    target: 4

@@ -4,11 +4,10 @@ from itertools import starmap
 
 import islpy as isl
 
-from bindings.config import Config
 from bindings.looptree import *
 from pytimeloop.looptree.des import deserialize_looptree_output
 from .make_model_app import make_model_app
-from tests.util import TEST_TMP_DIR, gather_yaml_configs
+from tests.util import TEST_TMP_DIR
 
 class LooptreeModelAppTest(unittest.TestCase):
     def test_model_with_two_level_mm(self):
@@ -52,7 +51,7 @@ class LooptreeModelAppTest(unittest.TestCase):
         )
 
 
-class TestLooptreeOutputDeserializer(unittest.TestCase):
+class TestIslReuseAnalysisOutputDeserializer(unittest.TestCase):
     def test_deserializer_with_two_level_mm(self):
         self.check_deserializer(
             Path(__file__).parent.parent / 'test_configs',

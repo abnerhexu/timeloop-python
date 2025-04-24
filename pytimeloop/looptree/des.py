@@ -1,34 +1,28 @@
+from dataclasses import dataclass, field
+
 import islpy as isl
 
 import bindings
 
 
-class LooptreeOutput:
-    def __init__(self):
-        self.ops = {}
-        self.fills = {}
-        self.occupancy = {}
-        self.op_occupancy = {}
-        self.reads_to_peer = {}
-        self.reads_to_parent = {}
-        self.temporal_steps = {}
-        self.fanout = {}
-        self.op_intensity = {}
-
-    def __repr__(self):
-        return (
-            f'LooptreeOutput(' +
-            f'ops={self.ops}, ' +
-            f'occupancy={self.occupancy}, ' +
-            f'reads_to_parent={self.reads_to_parent})'
-        )
+@dataclass
+class IslReuseAnalysisOutput:
+    ops: dict = field(default_factory=dict)
+    fills: dict = field(default_factory=dict)
+    occupancy: dict = field(default_factory=dict)
+    op_occupancy: dict = field(default_factory=dict)
+    reads_to_peer: dict = field(default_factory=dict)
+    reads_to_parent: dict = field(default_factory=dict)
+    temporal_steps: dict = field(default_factory=dict)
+    fanout: dict = field(default_factory=dict)
+    op_intensity: dict = field(default_factory=dict)
 
 
 def deserialize_looptree_output(
     looptree_output: bindings.looptree.LooptreeResult,
     isl_ctx: isl.Context
-) -> LooptreeOutput:
-    output = LooptreeOutput()
+) -> IslReuseAnalysisOutput:
+    output = IslReuseAnalysisOutput()
 
     output.ops = {
         k: (dims, isl.PwQPolynomial.read_from_str(isl_ctx, v))
