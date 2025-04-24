@@ -1,14 +1,17 @@
 from collections import defaultdict
 
 from pytimeloop.looptree.accesses import buffer_accesses_from_buffet_actions
-from pytimeloop.looptree.reuse.isl.des import IslReuseAnalysisOutput
+from pytimeloop.looptree.reuse.isl import IslReuseAnalysisOutput
+from pytimeloop.looptree.reuse.summarized import SummarizedAnalysisOutput
 
 
-def memory_latency(looptree_results: IslReuseAnalysisOutput,
-                   arch,
-                   mapping,
-                   workload,
-                   bindings):
+def memory_latency(
+    looptree_results: IslReuseAnalysisOutput | SummarizedAnalysisOutput,
+    arch,
+    mapping,
+    workload,
+    bindings
+):
     accesses_stats = buffer_accesses_from_buffet_actions(
         looptree_results,
         mapping,

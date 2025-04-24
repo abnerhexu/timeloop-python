@@ -1,7 +1,7 @@
 from pytimeloop.isl.singular import get_value_from_singular_qpolynomial
 from pytimeloop.looptree.latency.processors import LATENCY_PROCESSORS
 from pytimeloop.looptree.reuse.isl.des import IslReuseAnalysisOutput
-from pytimeloop.looptree.latency.memory.isl import memory_latency
+from pytimeloop.looptree.latency.memory import memory_latency
 
 from bindings.looptree import SpatialTag
 
