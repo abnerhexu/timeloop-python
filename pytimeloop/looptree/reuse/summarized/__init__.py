@@ -1,1 +1,2 @@
 from .symbolic import SummarizedAnalysisOutput
+from .compiler import compile_analysis_result

@@ -232,15 +232,3 @@ def analyze_reuse(mapping,
     output.fanout = fanout
 
     return tile_shapes, output
-
-    lambdify_with_tile_shapes = lambda x: lambdify(x, tile_shapes)
-
-    output.ops = lambdify_with_tile_shapes(output.ops)
-    output.temporal_steps = lambdify_with_tile_shapes(output.temporal_steps)
-    output.fanout = lambdify_with_tile_shapes(output.fanout)
-    output.occupancy = lambdify_with_tile_shapes(output.occupancy)
-    output.fills = lambdify_with_tile_shapes(output.fills)
-    output.reads_to_parent = lambdify_with_tile_shapes(output.reads_to_parent)
-    output.op_intensity = lambdify_with_tile_shapes(output.op_intensity)
-
-    return tile_shapes, output
