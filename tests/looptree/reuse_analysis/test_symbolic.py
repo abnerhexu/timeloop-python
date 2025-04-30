@@ -1,7 +1,7 @@
 import unittest
 from sympy import ceiling
 from math import ceil
-from pprint import pp
+import numpy as np
 
 from bindings.looptree import LooptreeWorkload, LooptreeWorkloadDependencyAnalyzer
 
@@ -74,3 +74,12 @@ class TestCompiler(unittest.TestCase, LoadConfigMixin):
                     ref_value,
                     f'fills for {key} do not match'
                 )
+
+        # Test using a numpy array to call the compiled results
+        M1_tile_shape_vals = np.array([1, 2, 4])
+        all_fills = compiled_result.fills[('GlobalBuffer', 0, 0)][1](
+            1,
+            1,
+            M1_tile_shape_vals
+        )
+        np.testing.assert_equal(all_fills, np.array([72, 36, 18]))
