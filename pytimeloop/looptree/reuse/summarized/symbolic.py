@@ -26,9 +26,11 @@ class SummarizedAnalysisOutput:
     op_intensity: dict = field(default_factory=dict)
 
 
-def analyze_reuse(mapping,
-                  workload: LooptreeWorkload,
-                  analyzer: LooptreeWorkloadDependencyAnalyzer):
+def analyze_reuse(
+    mapping,
+    workload: LooptreeWorkload,
+    analyzer: LooptreeWorkloadDependencyAnalyzer
+) -> SummarizedAnalysisOutput:
     einsum_name_to_id = workload.einsum_name_to_id()
     rank_name_to_id = workload.dimension_name_to_id()
     tensor_name_to_id = workload.data_space_name_to_id()
@@ -73,7 +75,7 @@ def analyze_reuse(mapping,
 
     tile_shapes = []
 
-    output = IslReuseAnalysisOutput()
+    output = SummarizedAnalysisOutput()
 
     latency = 1
     potential_tensor_access_multiplier = defaultdict(lambda: 1)

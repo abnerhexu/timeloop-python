@@ -7,7 +7,7 @@ from pytimeloop.looptree.accesses import *
 from pytimeloop.looptree.mapping_utilities import *
 
 
-def gather_actions(looptree_results, mapping, workload, bindings, is_path=False):
+def gather_actions(looptree_results, mapping, workload, bindings, is_path=False, use_name=False):
     einsum_name_to_id = workload.einsum_name_to_id()
 
     einsums_with_complete_mapping = \
@@ -23,7 +23,11 @@ def gather_actions(looptree_results, mapping, workload, bindings, is_path=False)
                                                          is_path)
     actions = {}
     for (buf, tensor, einsum), accesses in accesses_stats.items():
-        buf = bindings[buf]
+        if use_name:
+            buf = buf
+        else:
+            buf = bindings[buf]
+
         key = (buf, 'read')
         if key not in actions:
             actions[key] = 0
@@ -65,7 +69,7 @@ def gather_ops(ops, einsums_with_complete_mapping):
             continue
         if isinstance(v, isl.PwQPolynomial):
             total += get_sum_of_pw_qpolynomial(v)
-        elif isinstance(v, Number):
+        elif isinstance(v, Real):
             total += v
         else:
             total += v

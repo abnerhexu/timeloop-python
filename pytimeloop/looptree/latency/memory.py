@@ -1,4 +1,5 @@
 from collections import defaultdict
+from sympy import Max, Min
 
 from pytimeloop.looptree.accesses import buffer_accesses_from_buffet_actions
 from pytimeloop.looptree.reuse.isl import IslReuseAnalysisOutput
@@ -21,6 +22,8 @@ def memory_latency(
 
     component_to_read_writes = defaultdict(lambda: [None, None])
     for level, component in bindings.items():
+        if isinstance(looptree_results, SummarizedAnalysisOutput):
+            level = component
         read_count = 0
         write_count = 0
         for key, accesses in accesses_stats.items_with_buffer(level):
@@ -47,21 +50,23 @@ def memory_latency(
         # All shared bw for writing
         write_latency = writes / (write_bw + shared_bw)
         read_latency = reads / read_bw
-        if write_latency >= read_latency:
-            component_latency[component] = write_latency
-            continue
+        all_shared_for_write_latency = Max(write_latency, read_latency)
+
         # All shared bw for reading
         write_latency = writes / write_bw
         read_latency = reads / (read_bw + shared_bw)
-        if read_latency >= write_latency:
-            component_latency[component] = read_latency
-            continue
+        all_shared_for_read_latency = Max(write_latency, read_latency)
+
         # Shared bw shared for reading and writing
-        component_latency[component] = (
+        shared_for_read_and_write_latency = (
             (reads + writes)
             / 
             (read_bw + write_bw + shared_bw)
         )
+
+        component_latency[component] = Min(all_shared_for_write_latency,
+                                           all_shared_for_read_latency,
+                                           shared_for_read_and_write_latency)
     return component_latency
 
 

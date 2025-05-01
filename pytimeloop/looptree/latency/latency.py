@@ -1,4 +1,5 @@
 from typing import overload
+from sympy import Max
 
 from pytimeloop.isl.singular import get_value_from_singular_qpolynomial
 from pytimeloop.looptree.latency.processors import LATENCY_PROCESSORS
@@ -9,7 +10,7 @@ from pytimeloop.looptree.latency.memory import memory_latency
 from bindings.looptree import SpatialTag
 
 
-def get_latency(looptree_results: IslReuseAnalysisOutput,
+def get_latency(looptree_results,
                 mapping,
                 workload,
                 arch,
@@ -22,7 +23,7 @@ def get_latency(looptree_results: IslReuseAnalysisOutput,
                                  mapping,
                                  workload,
                                  bindings)
-    overall_latency = max(comp_latency, max(mem_latency.values()))
+    overall_latency = Max(comp_latency, Max(*mem_latency.values()))
     return overall_latency, comp_latency, mem_latency
 
 
@@ -57,7 +58,7 @@ def compute_isl_latency(temporal_steps, mapping, workload):
 
 def compute_summarized_latency(temporal_steps, mapping, workload):
     # TODO: this is only for single-Einsum!!!
-    return sum(value for key, value in temporal_steps)
+    return sum(value for key, value in temporal_steps.items())
 
 
 def _compute_latency(mapping, top_idx: int, temporal_steps, workload):

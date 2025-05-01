@@ -2,7 +2,7 @@ mapping:
   type: fused
   nodes:
   - type: storage
-    target: DRAM
+    target: MainMemory
     dspace: [Filter1, Fmap1, Fmap2]
   - type: storage
     target: GlobalBuffer

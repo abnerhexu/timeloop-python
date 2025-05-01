@@ -1,7 +1,6 @@
-from collections import defaultdict
-from collections.abc import Mapping
 from dataclasses import dataclass
-from numbers import Number
+from functools import reduce
+from operator import mul
 from typing import Optional, overload
 
 from bindings.looptree import TemporalTag, SequentialTag, PipelineTemporalTag
@@ -61,10 +60,12 @@ def summarize_total_and_per_unit_actions(
     reuse_analysis_result
 ):
     result = {}
+    reads_to_parent = reuse_analysis_result.reads_to_parent
+    reads_to_peer = reuse_analysis_result.reads_to_peer
     if isinstance(reuse_analysis_result, IslReuseAnalysisOutput):
         for key, (tags, fill) in reuse_analysis_result.fills.items():
-            read_to_parent = reuse_analysis_result.reads_to_parent[key][1]
-            read_to_peer = reuse_analysis_result.reads_to_peer[key][1]
+            read_to_parent = reads_to_parent[key][1]
+            read_to_peer = reads_to_peer[key][1]
 
             total_fill = get_sum_of_pw_qpolynomial(fill)
             total_read_to_parent = get_sum_of_pw_qpolynomial(read_to_parent)
@@ -89,20 +90,28 @@ def summarize_total_and_per_unit_actions(
                            max_per_unit_read_to_peer)
     elif isinstance(reuse_analysis_result, SummarizedAnalysisOutput):
         for key, (tags, fill) in reuse_analysis_result.fills.items():
-            buffer_id = key[0]
+            buffer_name = key[0]
 
-            read_to_parent = reuse_analysis_result.reads_to_parent[key][1]
-            read_to_peer = reuse_analysis_result.reads_to_peer[key][1]
+            if key in reads_to_parent:
+                read_to_parent = reads_to_parent[key][1]
+            else:
+                read_to_parent = 0
+
+            if key in reads_to_peer:
+                read_to_peer = reads_to_peer[key][1]
+            else:
+                read_to_peer = 0
 
             total_fill = fill
             total_read_to_parent = read_to_parent
             total_read_to_peer = read_to_peer
 
-            fanout = reuse_analysis_result.fanout[buffer_id]
+            fanout = reuse_analysis_result.fanout[buffer_name]
+            total_fanout = reduce(mul, fanout, 1)
 
-            max_per_unit_fill = fill / fanout
-            max_per_unit_read_to_parent = read_to_parent / fanout
-            max_per_unit_read_to_peer = read_to_peer / fanout
+            max_per_unit_fill = fill / total_fanout
+            max_per_unit_read_to_parent = read_to_parent / total_fanout
+            max_per_unit_read_to_peer = read_to_peer / total_fanout
 
             result[key] = (total_fill,
                            total_read_to_parent,

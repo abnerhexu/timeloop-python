@@ -29,9 +29,9 @@ class TestSymbolicReuseAnalysis(unittest.TestCase, LoadConfigMixin):
         P1_tile_shape, C1_tile_shape, M1_tile_shape = tile_shapes
 
         REFERENCE_FILLS = {
-            ('DRAM', 0, 0): (None, 18),
-            ('DRAM', 1, 0): (None, 8),
-            ('DRAM', 2, 0): (None, 36),
+            ('MainMemory', 0, 0): (None, 18),
+            ('MainMemory', 1, 0): (None, 8),
+            ('MainMemory', 2, 0): (None, 36),
             ('GlobalBuffer', 0, 0): (None, 18.0*ceiling(4/M1_tile_shape)),
             ('GlobalBuffer', 1, 0): (None, 8)
         }
@@ -61,9 +61,9 @@ class TestCompiler(unittest.TestCase, LoadConfigMixin):
         for M1_tile_shape_val in [1, 2, 4]:
 
             REFERENCE_FILLS = {
-                ('DRAM', 0, 0): 18,
-                ('DRAM', 1, 0): 8,
-                ('DRAM', 2, 0): 36,
+                ('MainMemory', 0, 0): 18,
+                ('MainMemory', 1, 0): 8,
+                ('MainMemory', 2, 0): 36,
                 ('GlobalBuffer', 0, 0): 18.0*ceil(4/M1_tile_shape_val),
                 ('GlobalBuffer', 1, 0): 8
             }
