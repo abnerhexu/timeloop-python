@@ -8,9 +8,6 @@ import sympy
 from bindings.looptree import LooptreeWorkload, LooptreeWorkloadDependencyAnalyzer
 
 from pytimeloop.looptree.equivalent_ranks import EquivalentGroups
-from pytimeloop.looptree.reuse.isl.des import IslReuseAnalysisOutput
-
-from .compiler import lambdify
 
 
 @dataclass

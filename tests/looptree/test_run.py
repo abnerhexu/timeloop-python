@@ -1,8 +1,5 @@
 from pathlib import Path
-from pprint import pp
 import unittest
-
-from bindings.looptree import LooptreeWorkload, LooptreeWorkloadDependencyAnalyzer
 
 from pytimeloop.looptree.run import run_looptree, run_looptree_symbolic
 
