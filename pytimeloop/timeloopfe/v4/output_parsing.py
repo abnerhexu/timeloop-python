@@ -209,6 +209,7 @@ class OutputStats:
             for k, v in t.accesses.items():
                 accumulator = results["accesses"].get(k, {})
                 for metric in ["reads", "fills", "updates"]:
+                    accumulator.setdefault(metric, 0)
                     accumulator[metric] += v[metric]
                 results["accesses"][k] = accumulator
 
