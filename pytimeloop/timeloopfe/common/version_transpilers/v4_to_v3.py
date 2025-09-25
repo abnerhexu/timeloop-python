@@ -199,6 +199,6 @@ def transpile(spec: Specification, for_model: bool = False, add_spatial_dummy = 
         rval["globals"] = spec.globals
     if not isempty(spec.get("ART", None)):
         rval["ART"] = spec.ART
-    if not isempty(spec.get("ART", None)):
+    if not isempty(spec.get("ERT", None)):
         rval["ERT"] = spec.ERT
     return rval
